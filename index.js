@@ -25,6 +25,8 @@ Printer.prototype = {
   preset: {
     noPrint: '.no-print',
 
+    time: 720,
+
     onPrintProcessReady: noop,
     onPrintProcessOpen: noop,
     onPrintProcessClose: noop,
@@ -245,7 +247,7 @@ Printer.prototype = {
       that.toPrint(glob);
 
       // Cleaner
-      that.wait(360).then(() => document.body.removeChild(origin));
+      that.wait(that.options.time).then(() => document.body.removeChild(origin));
     };
   },
 
