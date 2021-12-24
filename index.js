@@ -1,156 +1,288 @@
-// Printer Classic
 /* eslint-disable */
-const Printer = function (dom, options) {
-    if (!(this instanceof Printer)) return new Printer(dom, options);
 
-    this.options = this.extend({
-        'noPrint': '.no-print'
-    }, options);
+// Noop
+async function noop() {}
 
-    if ((typeof dom) === "string") {
-        this.dom = document.querySelector(dom);
-    } else {
-        this.isDOM(dom)
-        this.dom = this.isDOM(dom) ? dom : dom.$el;
-    }
+// Printer Classic as ES4
+function Printer(dom, options) {
+  // Check Initial
+  if (!(this instanceof Printer)) {
+    return new Printer(dom, options);
+  }
 
-    this.init();
-};
+  // Options Extension
+  this.options = this.extend(this.preset, options);
+
+  // Set Dom as check
+  this.dom = typeof dom === 'string' ? document.querySelector(dom) : this.isDOM(dom) ? dom : dom.$el;
+
+  // Init
+  this.init();
+}
 
 Printer.prototype = {
-    init: function () {
-        var content = this.getStyle() + this.getHtml();
-        this.writeIframe(content);
-    },
-    extend: function (obj, obj2) {
-        for (var k in obj2) {
-            obj[k] = obj2[k];
-        }
-        return obj;
-    },
+  // Preset for Options
+  preset: {
+    noPrint: '.no-print',
 
-    getStyle: function () {
-        var str = "",
-            styles = document.querySelectorAll('style,link');
-        for (var i = 0; i < styles.length; i++) {
-            str += styles[i].outerHTML;
-        }
-        str += "<style>" + (this.options.noPrint ? this.options.noPrint : '.no-print') + "{display:none;}</style>";
+    onPrintProcessReady: noop,
+    onPrintProcessOpen: noop,
+    onPrintProcessClose: noop,
+  },
 
-        return str;
-    },
+  // Init
+  init() {
+    // Write Iframe
+    this.writeFrame(this.getStyle() + this.getHtml());
+  },
 
-    getHtml: function () {
-        var inputs = document.querySelectorAll('input');
-        var textareas = document.querySelectorAll('textarea');
-        var selects = document.querySelectorAll('select');
+  // Check Node is in Body, and Not the Body Element Self
+  isInBody(node) {
+    return node === document.body ? false : document.body.contains(node);
+  },
 
-        for (var k = 0; k < inputs.length; k++) {
-            if (inputs[k].type == "checkbox" || inputs[k].type == "radio") {
-                if (inputs[k].checked == true) {
-                    inputs[k].setAttribute('checked', "checked")
-                } else {
-                    inputs[k].removeAttribute('checked')
-                }
-            } else if (inputs[k].type == "text") {
-                inputs[k].setAttribute('value', inputs[k].value)
-            } else {
-                inputs[k].setAttribute('value', inputs[k].value)
-            }
-        }
+  // Check is Dom
+  isDom() {
+    return typeof HTMLElement === 'object' ? () => obj instanceof HTMLElement : obj => obj && typeof obj === 'object' && obj.nodeType === 1 && typeof obj.nodeName === 'string';
+  },
 
-        for (var k2 = 0; k2 < textareas.length; k2++) {
-            if (textareas[k2].type == 'textarea') {
-                textareas[k2].innerHTML = textareas[k2].value
-            }
-        }
+  // Wait
+  wait(time = 100) {
+    // Use Promise
+    return new Promise(resolve => {
+      // Set Timeout
+      let outer = setTimeout(() => {
+        // Clear First
+        clearTimeout(outer);
 
-        for (var k3 = 0; k3 < selects.length; k3++) {
-            if (selects[k3].type == 'select-one') {
-                var child = selects[k3].children;
-                for (var i in child) {
-                    if (child[i].tagName == 'OPTION') {
-                        if (child[i].selected == true) {
-                            child[i].setAttribute('selected', "selected")
-                        } else {
-                            child[i].removeAttribute('selected')
-                        }
-                    }
-                }
-            }
-        }
-        // Wrapper Dom when needs to Printer
-        let outerHTML = this.wrapperRefDom(this.dom).outerHTML
-        return outerHTML;
-    },
-    // Wrapper Red Dom when Needs Printer
-    // Prevent Selector Failed of Root
-    wrapperRefDom: function (refDom) {
-        let prevDom = null
-        let currDom = refDom
-        // 判断当前元素是否在 body 中，不在文档中则直接返回该节点
-        if (!this.isInBody(currDom)) return currDom
+        // Then
+        resolve();
+      }, time);
+    });
+  },
 
-        while (currDom) {
-            if (prevDom) {
-                let element = currDom.cloneNode(false)
-                element.appendChild(prevDom)
-                prevDom = element
-            } else {
-                prevDom = currDom.cloneNode(true)
-            }
-            currDom = currDom.parentElement
-        }
-        return prevDom
-    },
+  // Each
+  each(target, callback = () => {}, increase = false) {
+    if ([undefined, null].includes(target)) {
+      return;
+    }
 
-    writeIframe: function (content) {
-        var w, doc, iframe = document.createElement('iframe'),
-            f = document.body.appendChild(iframe);
-        iframe.id = "printerFrame";
-        iframe.setAttribute('style', 'position:absolute;width:0;height:0;top:-10px;left:-10px;');
-        w = f.contentWindow || f.contentDocument;
-        doc = f.contentDocument || f.contentWindow.document;
-        doc.open();
-        // Add Style Modifier
-        doc.write(content + "<style>.print{transform: scale(2) !important;margin-top:250px;}@page {margin-top: 1mm;margin-bottom: 1mm;}</style>");
-        doc.close();
-        var _this = this
-        iframe.onload = function () {
-            _this.toPrint(w);
-            setTimeout(function () {
-                document.body.removeChild(iframe)
-            }, 100)
-        }
-    },
+    if (target.constructor === NodeList) {
+      for (let i = 0; i < target.length; i++) {
+        callback(target[i], i);
+      }
+      return;
+    }
 
-    toPrint: function (frameWindow) {
+    if (target.constructor === Array) {
+      target.forEach(callback);
+      return;
+    }
+
+    for (const key in target) {
+      callback(target[key], key);
+    }
+  },
+
+  // Extension
+  extend(origin, target) {
+    this.each(target, (item, key) => {
+      origin[key] = item;
+    });
+
+    return origin;
+  },
+
+  // Get Style
+  getStyle(sheet = '') {
+    // Get Style Links
+    const links = document.querySelectorAll('style,link');
+
+    // Super Position
+    this.each(links, node => {
+      sheet += node.outerHTML;
+    });
+
+    // Set Sheet
+    sheet += '<style>' + (this.options.noPrint ? this.options.noPrint : '.no-print') + '{display:none;}</style>';
+
+    // Exports
+    return sheet;
+  },
+
+  // Get HTML
+  getHtml() {
+    // All Inputs
+    var inputs = document.querySelectorAll('input');
+
+    // All Textareas
+    var textareas = document.querySelectorAll('textarea');
+
+    // All Selects
+    var selects = document.querySelectorAll('select');
+
+    // Loop Inputs
+    this.each(inputs, ele => {
+      if (['checkbox', 'radio'].includes(ele.type)) {
+        return ele.checked == true ? ele.setAttribute('checked', 'checked') : ele.removeAttribute('checked');
+      }
+      ele.setAttribute('value', ele.value);
+    });
+
+    // Loop Textareas
+    this.each(textareas, ele => {
+      if (ele.type == 'textarea') {
+        ele.innerHTML = ele.value;
+      }
+    });
+
+    // Loop Selects
+    this.each(selects, ele => {
+      // Just `select-one` No `select-multiple`
+      if (ele.type == 'select-one') {
+        // Loop Options
+        this.each(ele.children, opt => {
+          // Just OPTION
+          if (opt.tagName == 'OPTION') {
+            opt.selected == true ? opt.setAttribute('selected', 'selected') : opt.removeAttribute('selected');
+          }
+        });
+      }
+    });
+
+    // Wrapper Dom when needs to Printer
+    const { outerHTML } = this.wrapperRefer(this.dom);
+
+    // Exports for Printer
+    return outerHTML;
+  },
+  // Wrapper Red Dom when Needs Printer
+  // Prevent Selector Failed of Root
+  wrapperRefer(ref) {
+    // Prev Dom
+    let prevent = null;
+
+    // Current Dom as Ref
+    let current = ref;
+
+    // Check Current in `body` First
+    if (!this.isInBody(current)) {
+      return current;
+    }
+
+    // Deep Current
+    while (current) {
+      // Preset Cloner
+      let cloner;
+
+      // Check True
+      if (prevent) {
+        // Set Cloner as Current
+        cloner = current.cloneNode(false);
+
+        // Append Prevent into Cloner
+        cloner.appendChild(prevent);
+      } else {
+        // Set Cloner as Current
+        cloner = current.cloneNode(true);
+      }
+
+      // Reset Prevent
+      prevent = cloner;
+
+      // Reset Current as Parent Node
+      current = current.parentElement;
+    }
+
+    // Exports Prevent
+    return prevent;
+  },
+
+  // Create Frame
+  createFrame(id, attrs) {
+    // Set Frame
+    const iframe = document.createElement('iframe');
+
+    // Set ID
+    iframe.id = id;
+
+    // Set Attrs
+    this.each(attrs, (value, key) => iframe.setAttribute(key, value));
+
+    // Exports
+    return iframe;
+  },
+
+  // Write Frame - Style + HTML
+  writeFrame(content) {
+    // Set Frame Origin
+    const origin = this.createFrame('printerFrame', { style: `position:absolute;width:0;height:0;top:-10px;left:-10px;` });
+
+    // Get Frame after Append
+    const frame = document.body.appendChild(origin);
+
+    // Preset Glob
+    const glob = frame.contentWindow || frame.contentDocument;
+
+    // Preset Doc
+    const doc = frame.contentDocument || frame.contentWindow.document;
+
+    // Operation of Doc
+    doc.open();
+
+    // Add Style Modifier
+    doc.write(`${content}<style>.print{transform: scale(2) !important;margin-top:250px;}@page {margin-top: 1mm;margin-bottom: 1mm;}</style>`);
+
+    // Close ?
+    doc.close();
+
+    // As Scope
+    const that = this;
+
+    // Frame Onload
+    origin.onload = () => {
+      // To Print
+      that.toPrint(glob);
+
+      // Cleaner
+      that.wait(360).then(() => document.body.removeChild(origin));
+    };
+  },
+
+  // To Print ( Core )
+  toPrint(frameWindow) {
+    // Get Options in Scope
+    const { options } = this;
+
+    try {
+      this.wait(10).then(() => {
+        // Focus First
+        frameWindow.focus();
+
+        // Catch Any Error
         try {
-            setTimeout(function () {
-                frameWindow.focus();
-                try {
-                    if (!frameWindow.document.execCommand('print', false, null)) {
-                        frameWindow.print();
-                    }
-                } catch (e) {
-                    frameWindow.print();
-                }
-                frameWindow.close();
-            }, 10);
-        } catch (err) {
-            console.log('err', err);
+          if (!frameWindow.document.execCommand('print', false, null)) {
+            // Open Callback
+            options.onPrintProcessOpen();
+
+            // Trigger Print
+            frameWindow.print();
+          }
+        } catch (e) {
+          // Hard Trigger
+          frameWindow.print();
         }
-    },
-    // Check Node is in Body, and Not the Body Element Self
-    isInBody: function (node) {
-        return (node === document.body) ? false : document.body.contains(node);
-    },
-    isDOM: (typeof HTMLElement === 'object') ?
-        function (obj) {
-            return obj instanceof HTMLElement;
-        } : function (obj) {
-            return obj && typeof obj === 'object' && obj.nodeType === 1 && typeof obj.nodeName === 'string';
-        }
+
+        // Close Callback
+        options.onPrintProcessClose();
+
+        // Endness of Printer
+        frameWindow.close();
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  },
 };
 
-export default Printer
+export default Printer;
