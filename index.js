@@ -106,7 +106,7 @@ Printer.prototype = {
     });
 
     // Set Sheet
-    sheet += '<style>' + (this.options.noPrint ? this.options.noPrint : '.no-print') + '{display:none;}</style>';
+    sheet += '<style>' + (this.options.noPrint ? this.options.noPrint : '.no-print') + '{display:none;}' + (this.options.css || '') + '</style>';
 
     // Exports
     return sheet;
@@ -233,7 +233,7 @@ Printer.prototype = {
     doc.open();
 
     // Add Style Modifier
-    doc.write(`${content}<style>.print{transform: scale(2) !important;margin-top:250px;}@page {margin-top: 1mm;margin-bottom: 1mm;}</style>`);
+    doc.write(`${content}<style>.print{transform: scale(2) !important;margin-top:250px;}@page {margin-top: 1mm; margin-bottom: 1mm;}</style>`);
 
     // Close ?
     doc.close();
